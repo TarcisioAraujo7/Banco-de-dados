@@ -5,7 +5,9 @@ public class Conexão{
     static String senha = "";
 
     public static void main(String[] args){
-        String instrucaoSQL = "SELECT * FROM usuario";
+
+        String instrucaoSQL = "SELECT * FROM universidade.usuario";
+
         try {
             Class.forName(driverJDBC);
             Connection conexao = DriverManager.getConnection(url,user,senha);
