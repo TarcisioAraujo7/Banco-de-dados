@@ -13,7 +13,7 @@ public class Main {
             Class.forName("org.postgresql.Driver");
 
             // Estabelecendo conexão
-            Connection conexao = DriverManager.getConnection("jdbc:postgresql://database-1.clyjg1fcfqnn.us-east-1.rds.amazonaws.com/bd_aula","aluno","aluno");
+            Connection conexao = DriverManager.getConnection("url","user","password");
 
             Statement st = conexao.createStatement();
             ResultSet result = st.executeQuery(instrucaoSQL);
