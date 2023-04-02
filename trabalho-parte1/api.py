@@ -1,40 +1,80 @@
 from flask import Flask, jsonify, request 
+from flask_restx import Api, Resource, fields
+
 from pessoa import Pessoa
 import datetime 
 
 app = Flask(__name__)
+api = Api(app, version='1.0', title='API - BD parte 1',
+    description='API criada para avaliação da materia Banco de Dados - UFS 2023', doc='/doc',
+    contact='Tarcisio Almeida', contact_email='tarcisioolv@academico.ufs.br', contact_url='https://github.com/TarcisioAraujo7')
+
 
 banco_dados = [Pessoa(123456789, "Agatha", datetime.date(2018,5,18))]
 
-@app.route('/usuarios/<int:cpf>', methods=['GET'])  # type: ignore
-def consultar_usuario(cpf):
-    for usuario in banco_dados:
-        if usuario.cpf == cpf:
-            print(usuario)
-            return jsonify(usuario.retorne_dict())
+date_model = api.model('Date', {
+    'ano': fields.Integer(required=True),
+    'mes': fields.Integer(required=True),
+    'dia': fields.Integer(required=True)
+})
+
+pessoa_model = api.model('Pessoa', {
+    'cpf': fields.Integer(required=True),
+    'nome': fields.String(required=True),
+    'data': fields.Nested(date_model, required=True)
+})
+
+us = api.namespace('parte-1', description='Rotas para consultar e cadastrar usuários')
+  
+@us.route('/usuarios/<int:cpf>')
+class Usuario(Resource):
+    @api.doc(responses={200: 'OK', 404: 'Não encontrado'},
+             params = {'cpf' : {'description': 'CPF do usuário a ser buscado', 'example': 123456789}},
+             description = 'Consulta usuário no banco de dados')
+    def get(self, cpf):
+        for usuario in banco_dados:
+            if usuario.cpf == cpf:
+                return jsonify(usuario.retorne_dict())
+        return "Usuário não encontrado", 404
     
-    return "Usuario não encontrado"
 
-@app.route('/usuarios/cadastro', methods=['POST']) 
-def cadastrar_usuario():
 
-    novo_usuario = request.get_json()
+@us.route('/usuarios/cadastro')
+class CadastroUsuarios(Resource):
+    @api.doc(responses={201: 'OK', 400: 'Dado invalido'},
+             params = {'cpf' : {'description': 'CPF do usuário a ser cadastrado', 'example': 987654321},
+                       'nome' : {'description': 'Nome do usuário a ser cadastrado', 'example': "Fulano da Silva"},
+                       'data' : {'description': 'Data de nascimento do usuário', 'example': {'dia' : 1, 'mes' : 1, 'ano' : 2000}}},
+             description = 'Cadastra usuário no banco de dados')
     
-    for usuario in banco_dados:
-        if usuario.cpf == novo_usuario['cpf']:
-            return 'Ja existe um usuario com este cpf no sistema!'
+    @api.expect(pessoa_model)
+    def post(self):
+        novo_usuario = request.get_json()
 
-    data_nasc = (novo_usuario['data'])
-    data_formatada = datetime.date(data_nasc["ano"],data_nasc["mes"], data_nasc["dia"])
+        for usuario in banco_dados:
+            if usuario.cpf == novo_usuario['cpf']:
+                return {'message': 'Já existe um usuário com este CPF no sistema!'}, 400
 
-    novo_usuario = Pessoa(novo_usuario['cpf'], novo_usuario['nome'], data_formatada)
+        data_nasc = (novo_usuario['data'])
+        if validaData(data_nasc) == False:
+            return {'message': 'Insira uma data valida!'}, 400
+        
+        data_formatada = datetime.date(data_nasc["ano"], data_nasc["mes"], data_nasc["dia"])
+
+        novo_usuario = Pessoa(novo_usuario['cpf'], novo_usuario['nome'], data_formatada)
+
+        banco_dados.append(novo_usuario)
+
+        return {'message': 'Usuário cadastrado!'},201
+
+def validaData(data):
+    if data['ano'] <= 0:
+        return False
+    elif data['mes'] < 1 or data['mes'] > 12:
+        return False
+    elif data['dia'] < 1 or data['dia'] > 31:
+        return False
     
-    banco_dados.append(novo_usuario)
+    return True
 
-    saida = []
-    for usuario in banco_dados:
-        saida.append(usuario.retorne_dict())
-
-    return saida
-    
-app.run(port=5000, host='localhost')
+app.run(port=5000, host='localhost', debug= True)
