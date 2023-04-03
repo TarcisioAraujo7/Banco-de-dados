@@ -10,7 +10,7 @@ api = Api(app, version='1.0', title='API - BD parte 1',
     contact='Tarcisio Almeida', contact_email='tarcisioolv@academico.ufs.br', contact_url='https://github.com/TarcisioAraujo7')
 
 
-banco_dados = [Pessoa(123456789, "Agatha", datetime.date(2018,5,18))]
+banco_dados = [ Pessoa(123456789, "Agatha", datetime.date(2018,5,18)) ]
 
 date_model = api.model('Date', {
     'ano': fields.Integer(required=True),
@@ -28,19 +28,29 @@ us = api.namespace('parte-1', description='Rotas para consultar e cadastrar usu�
   
 @us.route('/usuarios/<int:cpf>')
 class Usuario(Resource):
+
     @api.doc(responses={200: 'OK', 404: 'Não encontrado'},
              params = {'cpf' : {'description': 'CPF do usuário a ser buscado', 'example': 123456789}},
              description = 'Consulta usuário no banco de dados')
+    
     def get(self, cpf):
         for usuario in banco_dados:
             if usuario.cpf == cpf:
                 return jsonify(usuario.retorne_dict())
         return "Usuário não encontrado", 404
-    
 
+@app.route('/usuarios/<int:cpf>', methods=['GET'])  # type: ignore
+def consultar_usuario(cpf):
+    for usuario in banco_dados:
+        if usuario.cpf == cpf:
+            print(usuario)
+            return jsonify(usuario.retorne_dict())
+    
+    return "Usuario não encontrado", 400
 
 @us.route('/usuarios/cadastro')
 class CadastroUsuarios(Resource):
+
     @api.doc(responses={201: 'OK', 400: 'Dado invalido'},
              params = {'cpf' : {'description': 'CPF do usuário a ser cadastrado', 'example': 987654321},
                        'nome' : {'description': 'Nome do usuário a ser cadastrado', 'example': "Fulano da Silva"},
@@ -66,6 +76,30 @@ class CadastroUsuarios(Resource):
         banco_dados.append(novo_usuario)
 
         return {'message': 'Usuário cadastrado!'},201
+
+@app.route('/usuarios/cadastro', methods=['POST']) 
+def cadastrar_usuario():
+
+    novo_usuario = request.get_json()
+        
+    for usuario in banco_dados:
+        if usuario.cpf == novo_usuario['cpf']:
+            return 'Ja existe um usuario com este cpf no sistema!'
+
+    data_nasc = (novo_usuario['data'])
+    if validaData(data_nasc) == False:
+        return {'message': 'Insira uma data valida!'}, 400
+    data_formatada = datetime.date(data_nasc["ano"],data_nasc["mes"], data_nasc["dia"])
+
+    novo_usuario = Pessoa(novo_usuario['cpf'], novo_usuario['nome'], data_formatada)
+        
+    banco_dados.append(novo_usuario)
+
+    saida = []
+    for usuario in banco_dados:
+        saida.append(usuario.retorne_dict())
+
+    return saida
 
 def validaData(data):
     if data['ano'] <= 0:
